@@ -1,4 +1,8 @@
 import { createHash, timingSafeEqual } from "crypto";
+import {
+  DEFAULT_ADMIN_PASSWORD,
+  DEFAULT_ADMIN_USERNAME,
+} from "@/lib/admin-defaults";
 import { COOKIE_NAME, createSessionToken } from "@/lib/admin-session";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -17,14 +21,11 @@ function verifyPassword(input: string, expected: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const expectedUser = (process.env.ADMIN_USERNAME ?? "admin").trim();
-  const expectedPass = process.env.ADMIN_PASSWORD;
-  if (!expectedPass || expectedPass.length < 1) {
-    return NextResponse.json(
-      { error: "server_misconfigured" },
-      { status: 500 }
-    );
-  }
+  const expectedUser = (
+    process.env.ADMIN_USERNAME ?? DEFAULT_ADMIN_USERNAME
+  ).trim();
+  const expectedPass =
+    process.env.ADMIN_PASSWORD ?? DEFAULT_ADMIN_PASSWORD;
 
   let body: { username?: string; password?: string };
   try {
