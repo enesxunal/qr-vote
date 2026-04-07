@@ -24,5 +24,10 @@ export async function getVoteKv(): Promise<KvLike> {
     const mod = await import("@vercel/kv");
     return mod.kv as unknown as KvLike;
   }
+  if (process.env.VERCEL === "1") {
+    console.warn(
+      "[qr-vote] KV_REST_* veya UPSTASH_REDIS_* yok: oylar gecici dosyada; deploy/yeni sunucuda sifirlanir. Vercel → projene Redis ekle."
+    );
+  }
   return getDevFileKvStore();
 }
