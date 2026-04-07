@@ -15,19 +15,15 @@ export const DISPLAY_LABEL_BY_KEY: Record<VoteOptionKey, string> = {
 };
 
 /**
- * Code-Standard, falls keine Umgebungsvariablen gesetzt sind.
- * Überschreiben ohne Code: in Vercel (oder .env) z. B.
- *   VOTE_DISPLAY_SEED_PIZZA=20
- *   VOTE_DISPLAY_SEED_PASTA=40
- *   VOTE_DISPLAY_SEED_BURGER=15
- *   VOTE_DISPLAY_SEED_VEGAN=10
- * Nur bei leerem Redis/KV greift das Seeding erneut — sonst Store leeren.
+ * Standard: alles 0 — Zähler steigen nur durch echte Stimmen (plus Pasta-Boost in display_votes).
+ * Optional künstliche Startwerte (Marketing): Vercel-Env VOTE_DISPLAY_SEED_PIZZA usw.
+ * Greift nur, wenn Redis/KV noch leer ist.
  */
 export const INITIAL_DISPLAY_VOTES: Record<VoteOptionKey, number> = {
-  pizza: 14,
-  pasta: 48,
-  burger: 11,
-  vegan: 9,
+  pizza: 0,
+  pasta: 0,
+  burger: 0,
+  vegan: 0,
 };
 
 const SEED_ENV_KEYS: Record<VoteOptionKey, string> = {
