@@ -32,7 +32,10 @@ export default function VotingPage() {
   const total = useMemo(() => (votes ? sumVotes(votes) : 0), [votes]);
 
   const fetchResults = useCallback(async () => {
-    const res = await fetch("/api/vote", { cache: "no-store" });
+    const res = await fetch("/api/vote", {
+      cache: "no-store",
+      credentials: "include",
+    });
     const data = (await res.json()) as { votes?: Votes };
     if (data?.votes) setVotes(data.votes);
   }, []);
@@ -50,6 +53,7 @@ export default function VotingPage() {
       const res = await fetch("/api/vote", {
         method: "POST",
         headers: { "content-type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ choice }),
       });
 
