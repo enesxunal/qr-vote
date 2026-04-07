@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# local dev vote store (no Redis)
+.tmp/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
