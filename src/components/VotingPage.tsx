@@ -1,9 +1,16 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Beef, Leaf, Pizza, UtensilsCrossed, type LucideIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DISPLAY_LABEL_BY_KEY, VOTE_OPTIONS, type VoteOptionKey } from "@/lib/vote";
+
+const CATEGORY_ICONS: Record<VoteOptionKey, LucideIcon> = {
+  pizza: Pizza,
+  pasta: UtensilsCrossed,
+  burger: Beef,
+  vegan: Leaf,
+};
 
 type Votes = Record<VoteOptionKey, number>;
 
@@ -17,9 +24,6 @@ function pct(value: number, total: number) {
 }
 
 export default function VotingPage() {
-  const searchParams = useSearchParams();
-  const isAdminMode = searchParams.get("view") === "gold_admin";
-
   const [phase, setPhase] = useState<"vote" | "thanks" | "results">("vote");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,17 +31,15 @@ export default function VotingPage() {
 
   const total = useMemo(() => (votes ? sumVotes(votes) : 0), [votes]);
 
-  async function fetchResults() {
-    const url = isAdminMode ? "/api/vote?view=gold_admin" : "/api/vote";
-    const res = await fetch(url, { cache: "no-store" });
+  const fetchResults = useCallback(async () => {
+    const res = await fetch("/api/vote", { cache: "no-store" });
     const data = (await res.json()) as { votes?: Votes };
     if (data?.votes) setVotes(data.votes);
-  }
+  }, []);
 
   useEffect(() => {
     if (phase === "results") void fetchResults();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, isAdminMode]);
+  }, [phase, fetchResults]);
 
   async function castVote(choice: VoteOptionKey) {
     if (submitting) return;
@@ -105,33 +107,41 @@ export default function VotingPage() {
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               className="grid grid-cols-1 gap-3"
             >
-              {VOTE_OPTIONS.map((opt, idx) => (
-                <motion.button
-                  key={opt.key}
-                  type="button"
-                  disabled={submitting}
-                  onClick={() => castVote(opt.key)}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.08 + idx * 0.05, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                  whileTap={{ scale: 0.985 }}
-                  className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left backdrop-blur-sm transition-colors disabled:opacity-70"
-                >
-                  <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                    <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_20%_10%,rgba(214,190,134,0.14),transparent_55%)]" />
-                  </div>
+              {VOTE_OPTIONS.map((opt, idx) => {
+                const Icon = CATEGORY_ICONS[opt.key];
+                return (
+                  <motion.button
+                    key={opt.key}
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => castVote(opt.key)}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.08 + idx * 0.05, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                    whileTap={{ scale: 0.985 }}
+                    className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left backdrop-blur-sm transition-colors disabled:opacity-70"
+                  >
+                    <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                      <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_20%_10%,rgba(214,190,134,0.14),transparent_55%)]" />
+                    </div>
 
-                  <div className="relative flex items-center justify-between gap-4">
-                    <div>
-                      <div className="text-base font-medium text-zinc-50">{opt.label}</div>
-                      <div className="mt-1 text-xs text-zinc-300/80">Tippen, um abzustimmen</div>
+                    <div className="relative flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#d6be86]/20 bg-black/30 text-[#d6be86]">
+                          <Icon className="h-5 w-5" aria-hidden />
+                        </div>
+                        <div>
+                          <div className="text-base font-medium text-zinc-50">{opt.label}</div>
+                          <div className="mt-1 text-xs text-zinc-300/80">Tippen, um abzustimmen</div>
+                        </div>
+                      </div>
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#d6be86]/20 bg-black/30 text-[#d6be86]">
+                        <span className="text-lg leading-none">→</span>
+                      </div>
                     </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#d6be86]/20 bg-black/30 text-[#d6be86]">
-                      <span className="text-lg leading-none">→</span>
-                    </div>
-                  </div>
-                </motion.button>
-              ))}
+                  </motion.button>
+                );
+              })}
 
               {error && (
                 <div className="mt-2 rounded-2xl border border-[#d6be86]/25 bg-black/40 px-4 py-3 text-sm text-[#f3e7c7]">
@@ -183,7 +193,7 @@ export default function VotingPage() {
                 <div>
                   <div className="text-sm font-medium text-zinc-200">Ergebnis</div>
                   <div className="mt-1 text-xs text-zinc-400/90">
-                    {isAdminMode ? "Interne Ansicht" : "Live Ansicht"} · {total ? `${total} Stimmen` : "lädt…"}
+                    Live Ansicht · {total ? `${total} Stimmen` : "lädt…"}
                   </div>
                 </div>
                 <button
@@ -197,12 +207,16 @@ export default function VotingPage() {
 
               <div className="mt-5 space-y-4">
                 {VOTE_OPTIONS.map((opt) => {
+                  const Icon = CATEGORY_ICONS[opt.key];
                   const value = votes?.[opt.key] ?? 0;
                   const percent = pct(value, total);
                   return (
                     <div key={opt.key} className="space-y-2">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm text-zinc-100">{DISPLAY_LABEL_BY_KEY[opt.key]}</div>
+                        <div className="flex items-center gap-2 text-sm text-zinc-100">
+                          <Icon className="h-4 w-4 shrink-0 text-[#d6be86]" aria-hidden />
+                          {DISPLAY_LABEL_BY_KEY[opt.key]}
+                        </div>
                         <div className="text-xs tabular-nums text-zinc-300/90">
                           {total ? `${percent}%` : "…"}
                         </div>
@@ -233,11 +247,6 @@ export default function VotingPage() {
           Anonyme Umfrage - Einmalige Abstimmung pro 24h erlaubt.
         </div>
       </main>
-
-      {isAdminMode && (
-        <div className="fixed bottom-3 right-3 h-1.5 w-1.5 rounded-full bg-[#d6be86] opacity-80" />
-      )}
     </div>
   );
 }
-

@@ -14,6 +14,14 @@ export const DISPLAY_LABEL_BY_KEY: Record<VoteOptionKey, string> = {
   vegan: "Vegane Köstlichkeiten",
 };
 
+/**
+ * Startwerte nur für die öffentliche Anzeige (display_votes), bevor echte Stimmen kommen.
+ * Summe = 14+48+11+9 = 82. Beim ersten Vote zählt die Anzeige +1 für die gewählte Kategorie
+ * und zusätzlich +1 für Pasta → Summe wird 84.
+ *
+ * Zum Anpassen: diese vier Zahlen ändern und (falls Redis/KV schon Daten hat) Store leeren
+ * oder neue Keys nutzen — sonst bleiben alte Werte gespeichert.
+ */
 export const INITIAL_DISPLAY_VOTES: Record<VoteOptionKey, number> = {
   pizza: 14,
   pasta: 48,
