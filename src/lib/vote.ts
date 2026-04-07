@@ -15,12 +15,13 @@ export const DISPLAY_LABEL_BY_KEY: Record<VoteOptionKey, string> = {
 };
 
 /**
- * Startwerte nur für die öffentliche Anzeige (display_votes), bevor echte Stimmen kommen.
- * Summe = 14+48+11+9 = 82. Beim ersten Vote zählt die Anzeige +1 für die gewählte Kategorie
- * und zusätzlich +1 für Pasta → Summe wird 84.
- *
- * Zum Anpassen: diese vier Zahlen ändern und (falls Redis/KV schon Daten hat) Store leeren
- * oder neue Keys nutzen — sonst bleiben alte Werte gespeichert.
+ * Code-Standard, falls keine Umgebungsvariablen gesetzt sind.
+ * Überschreiben ohne Code: in Vercel (oder .env) z. B.
+ *   VOTE_DISPLAY_SEED_PIZZA=20
+ *   VOTE_DISPLAY_SEED_PASTA=40
+ *   VOTE_DISPLAY_SEED_BURGER=15
+ *   VOTE_DISPLAY_SEED_VEGAN=10
+ * Nur bei leerem Redis/KV greift das Seeding erneut — sonst Store leeren.
  */
 export const INITIAL_DISPLAY_VOTES: Record<VoteOptionKey, number> = {
   pizza: 14,
@@ -28,4 +29,28 @@ export const INITIAL_DISPLAY_VOTES: Record<VoteOptionKey, number> = {
   burger: 11,
   vegan: 9,
 };
+
+const SEED_ENV_KEYS: Record<VoteOptionKey, string> = {
+  pizza: "VOTE_DISPLAY_SEED_PIZZA",
+  pasta: "VOTE_DISPLAY_SEED_PASTA",
+  burger: "VOTE_DISPLAY_SEED_BURGER",
+  vegan: "VOTE_DISPLAY_SEED_VEGAN",
+};
+
+/** Startzahlen für display_votes: Env schlägt Code-Defaults. */
+export function getDisplaySeedForStorage(): Record<VoteOptionKey, number> {
+  const out = {} as Record<VoteOptionKey, number>;
+  for (const k of Object.keys(INITIAL_DISPLAY_VOTES) as VoteOptionKey[]) {
+    const raw = process.env[SEED_ENV_KEYS[k]];
+    if (raw !== undefined && raw !== "") {
+      const n = Number.parseInt(String(raw), 10);
+      if (!Number.isNaN(n) && n >= 0) {
+        out[k] = n;
+        continue;
+      }
+    }
+    out[k] = INITIAL_DISPLAY_VOTES[k];
+  }
+  return out;
+}
 

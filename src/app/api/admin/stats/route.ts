@@ -1,7 +1,7 @@
 import { verifySessionToken, COOKIE_NAME } from "@/lib/admin-session";
 import type { KvLike } from "@/lib/dev-kv-file";
 import { getVoteKv } from "@/lib/get-vote-kv";
-import { INITIAL_DISPLAY_VOTES, type VoteOptionKey } from "@/lib/vote";
+import { getDisplaySeedForStorage, type VoteOptionKey } from "@/lib/vote";
 import { NextResponse, type NextRequest } from "next/server";
 
 export const runtime = "nodejs";
@@ -11,7 +11,7 @@ const RAW_KEY = "raw_votes";
 async function ensureSeeded(kv: KvLike) {
   const len = await kv.hlen("display_votes");
   if (len && len > 0) return;
-  await kv.hset("display_votes", INITIAL_DISPLAY_VOTES);
+  await kv.hset("display_votes", getDisplaySeedForStorage());
   await kv.hset(RAW_KEY, { pizza: 0, pasta: 0, burger: 0, vegan: 0 });
 }
 
