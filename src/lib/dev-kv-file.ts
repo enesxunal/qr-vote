@@ -1,12 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
 import { dirname, join } from "path";
 
 /**
- * Next.js dev (Turbopack) can run API handlers in different workers; in-memory
- * globalThis stores do not stay in sync. This file-backed store is shared
- * across all workers on the same machine.
+ * Redis yokken dosyaya yazarız. Vercel'de proje klasörü salt okunur — yazma 500 verir.
+ * OS geçici dizini (Windows/macOS/Linux) her ortamda yazılabilir.
  */
-const DEV_KV_FILE = join(process.cwd(), ".tmp", "dev-vote-kv.json");
+const DEV_KV_FILE = join(tmpdir(), "qr-vote-local-kv.json");
 
 export type HashValue = string | number;
 

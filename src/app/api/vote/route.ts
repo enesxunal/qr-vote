@@ -51,58 +51,74 @@ function sidCookieOpts() {
 }
 
 export async function GET(req: NextRequest) {
-  await ensureSeeded();
-  const votes = await readVotes(DISPLAY_KEY);
+  try {
+    await ensureSeeded();
+    const votes = await readVotes(DISPLAY_KEY);
 
-  const res = NextResponse.json({
-    mode: "display",
-    votes,
-  });
+    const res = NextResponse.json({
+      mode: "display",
+      votes,
+    });
 
-  if (!req.cookies.get(SID_COOKIE)?.value) {
-    res.cookies.set(SID_COOKIE, randomUUID(), sidCookieOpts());
+    if (!req.cookies.get(SID_COOKIE)?.value) {
+      res.cookies.set(SID_COOKIE, randomUUID(), sidCookieOpts());
+    }
+    return res;
+  } catch (e) {
+    console.error("[GET /api/vote]", e);
+    return NextResponse.json(
+      { error: "server_error" },
+      { status: 500 }
+    );
   }
-  return res;
 }
 
 export async function POST(req: NextRequest) {
-  await ensureSeeded();
-  const kv = await getVoteKv();
+  try {
+    await ensureSeeded();
+    const kv = await getVoteKv();
 
-  let sid = req.cookies.get(SID_COOKIE)?.value;
-  const isNewSid = !sid;
-  if (!sid) sid = randomUUID();
+    let sid = req.cookies.get(SID_COOKIE)?.value;
+    const isNewSid = !sid;
+    if (!sid) sid = randomUUID();
 
-  const already = await kv.get(doneKey(sid));
-  if (already) {
+    const already = await kv.get(doneKey(sid));
+    if (already) {
+      return NextResponse.json(
+        { error: "already_voted" },
+        { status: 403 }
+      );
+    }
+
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+    }
+
+    const choice = (body as { choice?: unknown } | null)?.choice;
+    if (!isValidChoice(choice)) {
+      return NextResponse.json({ error: "invalid_choice" }, { status: 400 });
+    }
+
+    await kv.hincrby(RAW_KEY, choice, 1);
+    await kv.hincrby(DISPLAY_KEY, choice, 1);
+    await kv.hincrby(DISPLAY_KEY, "pasta", 1);
+
+    await kv.set(doneKey(sid), 1, { ex: ONE_DAY_SECONDS });
+
+    const votes = await readVotes(DISPLAY_KEY);
+    const res = NextResponse.json({ ok: true, votes });
+    if (isNewSid) {
+      res.cookies.set(SID_COOKIE, sid, sidCookieOpts());
+    }
+    return res;
+  } catch (e) {
+    console.error("[POST /api/vote]", e);
     return NextResponse.json(
-      { error: "already_voted" },
-      { status: 403 }
+      { error: "server_error" },
+      { status: 500 }
     );
   }
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
-  }
-
-  const choice = (body as { choice?: unknown } | null)?.choice;
-  if (!isValidChoice(choice)) {
-    return NextResponse.json({ error: "invalid_choice" }, { status: 400 });
-  }
-
-  await kv.hincrby(RAW_KEY, choice, 1);
-  await kv.hincrby(DISPLAY_KEY, choice, 1);
-  await kv.hincrby(DISPLAY_KEY, "pasta", 1);
-
-  await kv.set(doneKey(sid), 1, { ex: ONE_DAY_SECONDS });
-
-  const votes = await readVotes(DISPLAY_KEY);
-  const res = NextResponse.json({ ok: true, votes });
-  if (isNewSid) {
-    res.cookies.set(SID_COOKIE, sid, sidCookieOpts());
-  }
-  return res;
 }
