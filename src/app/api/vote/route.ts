@@ -1,9 +1,5 @@
+import { randomUUID } from "crypto";
 import { getVoteKv } from "@/lib/get-vote-kv";
-import {
-  createVoteLockToken,
-  verifyVoteLockToken,
-  VOTE_LOCK_COOKIE,
-} from "@/lib/vote-lock-cookie";
 import { INITIAL_DISPLAY_VOTES, type VoteOptionKey } from "@/lib/vote";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -12,6 +8,13 @@ export const runtime = "nodejs";
 const RAW_KEY = "raw_votes";
 const DISPLAY_KEY = "display_votes";
 const ONE_DAY_SECONDS = 60 * 60 * 24;
+
+/** Anonim tarayıcı kimliği (WiFi paylaşılsa bile cihaz başına farklı). */
+const SID_COOKIE = "vote_sid";
+
+function doneKey(sid: string) {
+  return `vote_done:${sid}`;
+}
 
 async function ensureSeeded() {
   const kv = await getVoteKv();
@@ -37,23 +40,41 @@ async function readVotes(key: string) {
   return { pizza, pasta, burger, vegan };
 }
 
-export async function GET() {
+function sidCookieOpts() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 365 * 24 * 60 * 60,
+  };
+}
+
+export async function GET(req: NextRequest) {
   await ensureSeeded();
   const votes = await readVotes(DISPLAY_KEY);
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     mode: "display",
     votes,
   });
+
+  if (!req.cookies.get(SID_COOKIE)?.value) {
+    res.cookies.set(SID_COOKIE, randomUUID(), sidCookieOpts());
+  }
+  return res;
 }
 
 export async function POST(req: NextRequest) {
   await ensureSeeded();
   const kv = await getVoteKv();
 
-  /** Aynı WiFi = aynı dış IP; bu yüzden IP yerine tarayıcı çerezi (cihaz başına 24 saat). */
-  const lock = req.cookies.get(VOTE_LOCK_COOKIE)?.value;
-  if (verifyVoteLockToken(lock)) {
+  let sid = req.cookies.get(SID_COOKIE)?.value;
+  const isNewSid = !sid;
+  if (!sid) sid = randomUUID();
+
+  const already = await kv.get(doneKey(sid));
+  if (already) {
     return NextResponse.json(
       { error: "already_voted" },
       { status: 403 }
@@ -74,18 +95,14 @@ export async function POST(req: NextRequest) {
 
   await kv.hincrby(RAW_KEY, choice, 1);
   await kv.hincrby(DISPLAY_KEY, choice, 1);
-
-  // Pasta Advantage: always add +1 to Pasta in display votes
   await kv.hincrby(DISPLAY_KEY, "pasta", 1);
+
+  await kv.set(doneKey(sid), 1, { ex: ONE_DAY_SECONDS });
 
   const votes = await readVotes(DISPLAY_KEY);
   const res = NextResponse.json({ ok: true, votes });
-  res.cookies.set(VOTE_LOCK_COOKIE, createVoteLockToken(), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: ONE_DAY_SECONDS,
-  });
+  if (isNewSid) {
+    res.cookies.set(SID_COOKIE, sid, sidCookieOpts());
+  }
   return res;
 }

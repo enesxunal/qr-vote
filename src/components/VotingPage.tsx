@@ -40,6 +40,11 @@ export default function VotingPage() {
     if (data?.votes) setVotes(data.votes);
   }, []);
 
+  /** Sunucuya anonim vote_sid çerezi gelsin (ilk tıklamadan önce). */
+  useEffect(() => {
+    void fetch("/api/vote", { method: "GET", cache: "no-store", credentials: "include" });
+  }, []);
+
   useEffect(() => {
     if (phase === "results") void fetchResults();
   }, [phase, fetchResults]);
@@ -64,7 +69,16 @@ export default function VotingPage() {
       }
 
       if (!res.ok) {
-        setError("Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.");
+        try {
+          const j = (await res.json()) as { error?: string };
+          if (j?.error === "already_voted") {
+            setError("Sie haben bereits abgestimmt. Bitte versuchen Sie es später erneut.");
+          } else {
+            setError("Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.");
+          }
+        } catch {
+          setError("Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.");
+        }
         return;
       }
 
