@@ -112,7 +112,8 @@ function isValidChoice(choice: unknown): choice is VoteOptionKey {
 
 async function readVotes(key: string) {
   const kv = await getKv();
-  const data = (await kv.hgetall<Record<string, string | number>>(key)) || {};
+  const data =
+    ((await kv.hgetall(key)) as Record<string, string | number> | null) ?? {};
   const pizza = Number(data.pizza ?? 0);
   const pasta = Number(data.pasta ?? 0);
   const burger = Number(data.burger ?? 0);
