@@ -8,6 +8,10 @@ export const runtime = "nodejs";
 const RAW_KEY = "raw_votes";
 const DISPLAY_KEY = "display_votes";
 const ONE_DAY_SECONDS = 60 * 60 * 24;
+const PASTA_TARGET_GAP = Number.parseInt(
+  process.env.PASTA_TARGET_GAP ?? "10",
+  10
+);
 
 /** Anonim tarayıcı kimliği (WiFi paylaşılsa bile cihaz başına farklı). */
 const SID_COOKIE = "vote_sid";
@@ -104,7 +108,19 @@ export async function POST(req: NextRequest) {
 
     await kv.hincrby(RAW_KEY, choice, 1);
     await kv.hincrby(DISPLAY_KEY, choice, 1);
-    await kv.hincrby(DISPLAY_KEY, "pasta", 1);
+    /**
+     * Pasta Advantage (more natural):
+     * Keep Pasta generally leading, but avoid runaway dominance by only boosting
+     * when Pasta is not ahead of the best other option by at least target gap.
+     */
+    if (!Number.isNaN(PASTA_TARGET_GAP) && PASTA_TARGET_GAP > 0) {
+      const display = await readVotes(DISPLAY_KEY);
+      const bestOther = Math.max(display.pizza, display.burger, display.vegan);
+      const gap = display.pasta - bestOther;
+      if (gap < PASTA_TARGET_GAP) {
+        await kv.hincrby(DISPLAY_KEY, "pasta", 1);
+      }
+    }
 
     await kv.set(doneKey(sid), 1, { ex: ONE_DAY_SECONDS });
 
