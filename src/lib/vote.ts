@@ -1,7 +1,7 @@
 export const VOTE_OPTIONS = [
   { key: "pizza", label: "Hausgemachte Pizza" },
   { key: "pasta", label: "Hausgemachte Pasta" },
-  { key: "burger", label: "ev yapımı fries chicken" },
+  { key: "burger", label: "Hausgemachte Pommes & Chicken" },
   { key: "vegan", label: "Vegane Köstlichkeiten" },
 ] as const;
 
@@ -10,7 +10,7 @@ export type VoteOptionKey = (typeof VOTE_OPTIONS)[number]["key"];
 export const DISPLAY_LABEL_BY_KEY: Record<VoteOptionKey, string> = {
   pizza: "Hausgemachte Pizza",
   pasta: "Hausgemachte Pasta",
-  burger: "ev yapımı fries chicken",
+  burger: "Hausgemachte Pommes & Chicken",
   vegan: "Vegane Köstlichkeiten",
 };
 
