@@ -1,14 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Beef, Leaf, Pizza, UtensilsCrossed, type LucideIcon } from "lucide-react";
+import { Drumstick, Leaf, Pizza, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { DISPLAY_LABEL_BY_KEY, VOTE_OPTIONS, type VoteOptionKey } from "@/lib/vote";
 
 const ICONS: Record<VoteOptionKey, LucideIcon> = {
   pizza: Pizza,
   pasta: UtensilsCrossed,
-  burger: Beef,
+  burger: Drumstick,
   vegan: Leaf,
 };
 
