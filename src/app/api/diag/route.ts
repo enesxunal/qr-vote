@@ -18,12 +18,18 @@ export async function GET() {
   const hasUpstash = Boolean(
     process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
   );
+  const hasRedisTcp = Boolean(
+    process.env.KV_REST_API_REDIS_URL ||
+      process.env.REDIS_URL ||
+      process.env.UPSTASH_REDIS_URL
+  );
 
   return NextResponse.json({
     vercel: process.env.VERCEL === "1",
     kvEnvDetected: envLooksConfiguredForKv(),
     hasKvEnv: hasKv,
     hasUpstashEnv: hasUpstash,
+    hasRedisTcpEnv: hasRedisTcp,
     kvUrlHost: maskUrl(process.env.KV_REST_API_URL),
     upstashUrlHost: maskUrl(process.env.UPSTASH_REDIS_REST_URL),
   });
