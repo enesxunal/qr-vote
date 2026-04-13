@@ -22,6 +22,8 @@ export type KvLike = {
 type FileShape = {
   kv: Record<string, { value: HashValue; expiresAt?: number }>;
   hashes: Record<string, Record<string, number>>;
+  /** Listen: neueste Einträge zuerst (wie Redis LPUSH). */
+  lists?: Record<string, string[]>;
 };
 
 let chain: Promise<void> = Promise.resolve();
@@ -33,11 +35,16 @@ function enqueue<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 function readSync(): FileShape {
-  if (!existsSync(DEV_KV_FILE)) return { kv: {}, hashes: {} };
+  if (!existsSync(DEV_KV_FILE)) return { kv: {}, hashes: {}, lists: {} };
   try {
-    return JSON.parse(readFileSync(DEV_KV_FILE, "utf8")) as FileShape;
+    const raw = JSON.parse(readFileSync(DEV_KV_FILE, "utf8")) as FileShape;
+    return {
+      kv: raw.kv ?? {},
+      hashes: raw.hashes ?? {},
+      lists: raw.lists ?? {},
+    };
   } catch {
-    return { kv: {}, hashes: {} };
+    return { kv: {}, hashes: {}, lists: {} };
   }
 }
 
@@ -120,4 +127,27 @@ export function getDevFileKvStore(): KvLike {
   };
 
   return singleton;
+}
+
+const EVENTS_MAX_DEFAULT = 10_000;
+
+/** Nur für lokale Entwicklung ohne Redis. */
+export async function devListLpush(key: string, value: string, maxLen = EVENTS_MAX_DEFAULT): Promise<void> {
+  return enqueue(async () => {
+    const s = readSync();
+    if (!s.lists) s.lists = {};
+    const arr = s.lists[key] ?? [];
+    s.lists[key] = [value, ...arr].slice(0, maxLen);
+    writeSync(s);
+  });
+}
+
+/** start/end inklusiv; end = -1 bis Listenende. */
+export async function devListLrange(key: string, start: number, end: number): Promise<string[]> {
+  return enqueue(async () => {
+    const s = readSync();
+    const arr = s.lists?.[key] ?? [];
+    if (end < 0) return arr.slice(start);
+    return arr.slice(start, end + 1);
+  });
 }

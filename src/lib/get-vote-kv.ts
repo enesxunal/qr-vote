@@ -26,7 +26,7 @@ export function envLooksConfiguredForKv(): boolean {
   return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
 
-function getRedisTcpUrl(): string | null {
+export function getRedisTcpUrl(): string | null {
   return (
     process.env.KV_REST_API_REDIS_URL ||
     process.env.REDIS_URL ||

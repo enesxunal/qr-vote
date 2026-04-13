@@ -2,6 +2,7 @@ import { verifySessionToken, COOKIE_NAME } from "@/lib/admin-session";
 import type { KvLike } from "@/lib/dev-kv-file";
 import { getVoteKv } from "@/lib/get-vote-kv";
 import { getDisplaySeedForStorage } from "@/lib/vote";
+import { getRecentVoteEvents } from "@/lib/vote-event-log";
 import { getHourlyVoteLog } from "@/lib/vote-log";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -30,10 +31,11 @@ export async function GET(req: NextRequest) {
 
     const daysParam = req.nextUrl.searchParams.get("days");
     let rows = reversed;
+    let cutoff = 0;
     if (daysParam) {
       const days = Number.parseInt(daysParam, 10);
       if (!Number.isNaN(days) && days > 0) {
-        const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+        cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
         rows = reversed.filter((r) => {
           const d = new Date(`${r.hourUtc}:00:00.000Z`);
           return d.getTime() >= cutoff;
@@ -41,11 +43,24 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const eventLimit = Number.parseInt(
+      req.nextUrl.searchParams.get("eventsLimit") ?? "500",
+      10
+    );
+    const rawEvents = await getRecentVoteEvents(
+      Number.isNaN(eventLimit) ? 500 : Math.min(Math.max(eventLimit, 1), 2000)
+    );
+    const events =
+      cutoff > 0
+        ? rawEvents.filter((e) => new Date(e.t).getTime() >= cutoff)
+        : rawEvents;
+
     return NextResponse.json({
       timezone: "UTC",
       hourly: rows,
+      events,
       note:
-        "Stündliche Zähler ab Deployment dieser Funktion; ältere Stimmen haben keine Zeitreihe.",
+        "Stündliche Zähler ab Deployment dieser Funktion; ältere Stimmen haben keine Zeitreihe. Einzelstimmen: UTC-Zeitstempel pro API-Stimme (max. 10k in Redis).",
     });
   } catch (e) {
     console.error("[GET /api/admin/vote-log]", e);

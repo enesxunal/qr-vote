@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { DISPLAY_LABEL_BY_KEY, type VoteOptionKey } from "@/lib/vote";
 
+type VoteEvent = { t: string; c: VoteOptionKey };
+
 type Hourly = {
   hourUtc: string;
   total: number;
@@ -23,26 +25,29 @@ export default function AdminLogsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Hourly[] | null>(null);
+  const [events, setEvents] = useState<VoteEvent[] | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [days, setDays] = useState(14);
 
   const loadLog = useCallback(async () => {
-    const res = await fetch(`/api/admin/vote-log?days=${days}`, {
+    const res = await fetch(`/api/admin/vote-log?days=${days}&eventsLimit=2000`, {
       credentials: "include",
       cache: "no-store",
     });
     if (res.status === 401) {
       setAuthed(false);
       setRows(null);
+      setEvents(null);
       return;
     }
     if (!res.ok) {
       setError("Log konnte nicht geladen werden.");
       return;
     }
-    const data = (await res.json()) as { hourly?: Hourly[]; note?: string };
+    const data = (await res.json()) as { hourly?: Hourly[]; events?: VoteEvent[]; note?: string };
     setAuthed(true);
     setRows(data.hourly ?? []);
+    setEvents(data.events ?? []);
     setNote(data.note ?? null);
     setError(null);
   }, [days]);
@@ -78,6 +83,7 @@ export default function AdminLogsPage() {
     await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     setAuthed(false);
     setRows(null);
+    setEvents(null);
   }
 
   return (
@@ -90,7 +96,7 @@ export default function AdminLogsPage() {
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-xl font-semibold tracking-tight">Stimmen · Verlauf (Stunden)</h1>
+              <h1 className="text-xl font-semibold tracking-tight">Stimmen · Verlauf</h1>
               {authed && (
                 <Link
                   href="/admin"
@@ -101,7 +107,8 @@ export default function AdminLogsPage() {
               )}
             </div>
             <p className="mt-1 text-sm text-zinc-400">
-              Nur echte API-Stimmen pro Stunde (UTC). Keine IP-Speicherung.
+              Oben: Summen pro Stunde (UTC). Unten: jede Stimme mit exaktem Zeitstempel — so erkennen Sie
+              Sekunden-abständige Bot-Muster. Keine IP-Speicherung.
             </p>
             {note && <p className="mt-2 text-xs text-zinc-500">{note}</p>}
           </div>
@@ -149,13 +156,17 @@ export default function AdminLogsPage() {
           </motion.form>
         )}
 
-        {authed && rows && (
+        {authed && rows && events && (
           <motion.section
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             className="rounded-3xl border border-[#d6be86]/20 bg-white/[0.03] p-5 backdrop-blur-sm"
           >
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-medium text-zinc-200">Stunden (aggregiert)</h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Mehrere Stimmen in derselben Stunde erscheinen hier in einer Zeile zusammengezählt.
+            </p>
+            <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm text-zinc-300">
                 Zeitraum: letzte{" "}
                 <select
@@ -214,6 +225,39 @@ export default function AdminLogsPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="mt-10 border-t border-white/10 pt-6">
+              <h2 className="text-sm font-medium text-zinc-200">Einzelstimmen (UTC, chronologisch)</h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                Neueste oben. Nur Stimmen nach Deployment dieser Funktion; ältere Stimmen fehlen.
+              </p>
+              <div className="mt-4 max-h-[min(480px,50vh)] overflow-auto rounded-xl border border-white/10">
+                <table className="w-full min-w-[480px] border-collapse text-left text-sm">
+                  <thead className="sticky top-0 bg-[#0b0b0c]/95 backdrop-blur">
+                    <tr className="border-b border-white/10 text-xs text-zinc-500">
+                      <th className="py-2 pl-3 pr-3 font-medium">Zeit (UTC)</th>
+                      <th className="py-2 pr-3 font-medium">Wahl</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {events.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="px-3 py-6 text-center text-zinc-500">
+                          Noch keine Einzelstimmen.
+                        </td>
+                      </tr>
+                    ) : (
+                      events.map((ev, idx) => (
+                        <tr key={`${ev.t}-${idx}`} className="border-b border-white/5 text-zinc-200">
+                          <td className="py-2 pl-3 pr-3 font-mono text-xs text-zinc-400">{ev.t}</td>
+                          <td className="py-2 pr-3 text-zinc-300">{DISPLAY_LABEL_BY_KEY[ev.c]}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </motion.section>
         )}

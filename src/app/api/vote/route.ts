@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { getVoteKv } from "@/lib/get-vote-kv";
 import { rateLimitVoteOr429 } from "@/lib/rate-limit-vote";
+import { appendVoteEvent } from "@/lib/vote-event-log";
 import { recordVoteLog } from "@/lib/vote-log";
 import { getDisplaySeedForStorage, type VoteOptionKey } from "@/lib/vote";
 import { NextResponse, type NextRequest } from "next/server";
@@ -129,8 +130,9 @@ export async function POST(req: NextRequest) {
 
     try {
       await recordVoteLog(kv, choice);
+      await appendVoteEvent(choice);
     } catch (e) {
-      console.error("[recordVoteLog]", e);
+      console.error("[recordVoteLog/appendVoteEvent]", e);
     }
 
     await kv.set(doneKey(sid), 1, { ex: ONE_DAY_SECONDS });
