@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { getVoteKv } from "@/lib/get-vote-kv";
+import { recordVoteLog } from "@/lib/vote-log";
 import { getDisplaySeedForStorage, type VoteOptionKey } from "@/lib/vote";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -120,6 +121,12 @@ export async function POST(req: NextRequest) {
       if (gap < PASTA_TARGET_GAP) {
         await kv.hincrby(DISPLAY_KEY, "pasta", 1);
       }
+    }
+
+    try {
+      await recordVoteLog(kv, choice);
+    } catch (e) {
+      console.error("[recordVoteLog]", e);
     }
 
     await kv.set(doneKey(sid), 1, { ex: ONE_DAY_SECONDS });

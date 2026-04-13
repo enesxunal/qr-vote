@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Drumstick, Leaf, Pizza, UtensilsCrossed, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { DISPLAY_LABEL_BY_KEY, VOTE_OPTIONS, type VoteOptionKey } from "@/lib/vote";
 
@@ -100,13 +101,21 @@ export default function AdminPage() {
             </p>
           </div>
           {authed && (
-            <button
-              type="button"
-              onClick={() => void handleLogout()}
-              className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300"
-            >
-              Abmelden
-            </button>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Link
+                href="/admin/logs"
+                className="rounded-full border border-[#d6be86]/25 bg-[#d6be86]/10 px-3 py-1.5 text-xs text-[#f3e7c7]/90"
+              >
+                Stunden-Verlauf
+              </Link>
+              <button
+                type="button"
+                onClick={() => void handleLogout()}
+                className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300"
+              >
+                Abmelden
+              </button>
+            </div>
           )}
         </div>
 
