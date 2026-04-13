@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Drumstick, Leaf, Pizza, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DISPLAY_LABEL_BY_KEY, VOTE_OPTIONS, type VoteOptionKey } from "@/lib/vote";
 
 const ICONS: Record<VoteOptionKey, LucideIcon> = {
@@ -28,6 +28,13 @@ export default function AdminPage() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [editPizza, setEditPizza] = useState("");
+  const [editPasta, setEditPasta] = useState("");
+  const [editBurger, setEditBurger] = useState("");
+  const [editVegan, setEditVegan] = useState("");
+  const [savingCorrection, setSavingCorrection] = useState(false);
+  const [correctionMsg, setCorrectionMsg] = useState<string | null>(null);
+  const draftInit = useRef(false);
 
   const loadStats = useCallback(async () => {
     const res = await fetch("/api/admin/stats", { credentials: "include", cache: "no-store" });
@@ -50,6 +57,15 @@ export default function AdminPage() {
   useEffect(() => {
     void loadStats();
   }, [loadStats]);
+
+  useEffect(() => {
+    if (!votes || draftInit.current) return;
+    setEditPizza(String(votes.pizza));
+    setEditPasta(String(votes.pasta));
+    setEditBurger(String(votes.burger));
+    setEditVegan(String(votes.vegan));
+    draftInit.current = true;
+  }, [votes]);
 
   useEffect(() => {
     if (!authed) return;
@@ -84,6 +100,46 @@ export default function AdminPage() {
     await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     setAuthed(false);
     setVotes(null);
+    draftInit.current = false;
+  }
+
+  async function applyCorrection(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingCorrection(true);
+    setCorrectionMsg(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/set-votes", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          pizza: Number(editPizza),
+          pasta: Number(editPasta),
+          burger: Number(editBurger),
+          vegan: Number(editVegan),
+        }),
+      });
+      if (res.status === 401) {
+        setAuthed(false);
+        setCorrectionMsg("Sitzung abgelaufen.");
+        return;
+      }
+      if (!res.ok) {
+        setCorrectionMsg("Speichern fehlgeschlagen.");
+        return;
+      }
+      const data = (await res.json()) as { votes: Votes; total: number };
+      setVotes(data.votes);
+      setTotal(data.total);
+      setEditPizza(String(data.votes.pizza));
+      setEditPasta(String(data.votes.pasta));
+      setEditBurger(String(data.votes.burger));
+      setEditVegan(String(data.votes.vegan));
+      setCorrectionMsg("Gespeichert. Öffentliche und interne Zähler sind gleich gesetzt.");
+    } finally {
+      setSavingCorrection(false);
+    }
   }
 
   return (
@@ -201,6 +257,74 @@ export default function AdminPage() {
                 );
               })}
             </div>
+
+            <form
+              onSubmit={(e) => void applyCorrection(e)}
+              className="mt-8 border-t border-white/10 pt-6"
+            >
+              <h2 className="text-sm font-medium text-zinc-200">Manuelle Korrektur</h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                Setzt interne (raw) und öffentliche Anzeige (display) auf dieselben Werte. Neue
+                Stimmen zählen danach normal weiter (Pasta-Boost kann die Anzeige wieder leicht
+                verschieben).
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <label className="block text-xs text-zinc-400">
+                  {DISPLAY_LABEL_BY_KEY.pizza}
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={editPizza}
+                    onChange={(ev) => setEditPizza(ev.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm tabular-nums outline-none ring-[#d6be86]/30 focus:ring-2"
+                  />
+                </label>
+                <label className="block text-xs text-zinc-400">
+                  {DISPLAY_LABEL_BY_KEY.pasta}
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={editPasta}
+                    onChange={(ev) => setEditPasta(ev.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm tabular-nums outline-none ring-[#d6be86]/30 focus:ring-2"
+                  />
+                </label>
+                <label className="block text-xs text-zinc-400">
+                  {DISPLAY_LABEL_BY_KEY.burger}
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={editBurger}
+                    onChange={(ev) => setEditBurger(ev.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm tabular-nums outline-none ring-[#d6be86]/30 focus:ring-2"
+                  />
+                </label>
+                <label className="block text-xs text-zinc-400">
+                  {DISPLAY_LABEL_BY_KEY.vegan}
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={editVegan}
+                    onChange={(ev) => setEditVegan(ev.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm tabular-nums outline-none ring-[#d6be86]/30 focus:ring-2"
+                  />
+                </label>
+              </div>
+              {correctionMsg && (
+                <p className="mt-3 text-xs text-emerald-200/90">{correctionMsg}</p>
+              )}
+              <button
+                type="submit"
+                disabled={savingCorrection}
+                className="mt-4 w-full rounded-2xl border border-white/15 bg-white/[0.06] py-2.5 text-sm text-zinc-100 disabled:opacity-60"
+              >
+                {savingCorrection ? "…" : "Korrektur speichern"}
+              </button>
+            </form>
           </motion.section>
         )}
 

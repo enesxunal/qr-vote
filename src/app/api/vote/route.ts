@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { getVoteKv } from "@/lib/get-vote-kv";
+import { rateLimitVoteOr429 } from "@/lib/rate-limit-vote";
 import { recordVoteLog } from "@/lib/vote-log";
 import { getDisplaySeedForStorage, type VoteOptionKey } from "@/lib/vote";
 import { NextResponse, type NextRequest } from "next/server";
@@ -80,6 +81,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = await rateLimitVoteOr429(req);
+    if (limited) return limited;
+
     await ensureSeeded();
     const kv = await getVoteKv();
 
